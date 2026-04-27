@@ -609,9 +609,47 @@ window.addEventListener('scroll',function(){var el=document.getElementById('scro
 
 function scrollC(id,dir){var el=document.getElementById(id);if(el)el.scrollBy({left:dir*520,behavior:'smooth'})}
 
-function filterLib(f,btn){
-  document.querySelectorAll('.filter-tab').forEach(function(t){t.className='filter-tab'});
-  btn.classList.add('act-'+f);
+/* ─── CONTROL DE HISTORIAL (BOTÓN ATRÁS DEL MÓVIL) ─── */
+var isModalOpen = false;
+
+window.addEventListener('popstate', function(event) {
+  // 1. Si hay un modal abierto y presionan atrás, lo cerramos
+  if (isModalOpen) {
+    forceCloseModals();
+  }
+  // 2. Si cambian entre pestañas usando el botón atrás
+  else if (event.state && event.state.filter) {
+    filterLib(event.state.filter, null, true);
+  } 
+  // 3. Volver a la vista por defecto (Todo)
+  else {
+    filterLib('all', null, true);
+  }
+});
+
+function forceCloseModals() {
+  var pm = document.getElementById('pmModal');
+  var gm = document.getElementById('guideModal');
+  if (pm) pm.classList.remove('open');
+  if (gm) gm.classList.remove('open');
+  document.body.style.overflow = '';
+  isModalOpen = false;
+}
+
+function filterLib(f, btn, isPopState) {
+  var tabs = document.querySelectorAll('.filter-tab');
+  tabs.forEach(function(t){ t.className = 'filter-tab'; });
+  
+  if (btn) {
+    btn.classList.add('act-' + f);
+  } else {
+    // Restaurar clase activa si venimos del botón "Atrás"
+    var map = {'all':0, 'free':1, 'quick':2, 'plata':3, 'oro':4, 'nat':5};
+    if (map[f] !== undefined && tabs[map[f]]) {
+       tabs[map[f]].classList.add('act-' + f);
+    }
+  }
+
   ['free','quick','plata','oro','nat'].forEach(function(k){
     var s=document.getElementById('sec-'+k);
     if(s){if(f==='all'||f===k)s.classList.remove('hidden-section');else s.classList.add('hidden-section');}
@@ -620,7 +658,12 @@ function filterLib(f,btn){
     var el=document.getElementById(d);
     if(el)el.style.display=(f==='all')?'':'none';
   });
-  window.scrollTo({top:0,behavior:'smooth'});
+
+  // Guardar en el historial solo si es un clic real del usuario
+  if (!isPopState) {
+    window.scrollTo({top:0,behavior:'smooth'});
+    history.pushState({filter: f}, '', '#' + f);
+  }
 }
 
 var EBOOKS={
@@ -663,12 +706,31 @@ function openPremium(id){
     '</div>'+
     '<p class="modal-footer-note">Garantía de 7 días · Acceso inmediato · PDF descargable</p>'+
     '</div>';
+  
   document.getElementById('pmModal').classList.add('open');
   document.body.style.overflow='hidden';
   document.getElementById('pmBox').scrollTop=0;
+
+  if (!isModalOpen) {
+    history.pushState({modal: true}, '', window.location.hash);
+    isModalOpen = true;
+  }
 }
-function closePremium(){document.getElementById('pmModal').classList.remove('open');document.body.style.overflow=''}
-document.addEventListener('keydown',function(e){if(e.key==='Escape')closePremium()});
+
+function closePremium(){
+  if (isModalOpen) {
+    history.back();
+  } else {
+    forceCloseModals();
+  }
+}
+
+// Cerrar si se presiona la tecla Escape
+document.addEventListener('keydown', function(e){
+  if(e.key === 'Escape' && isModalOpen) {
+    history.back();
+  }
+});
 
 /* ── GUIDE ESPAÑOL DIRECTO (sin pantalla de idioma) ── */
 function openGuideES(titulo,enlace,tag){
@@ -685,9 +747,15 @@ function openGuideES(titulo,enlace,tag){
     '<button onclick="sendGuideForm()" type="button" style="display:flex;align-items:center;justify-content:center;width:100%;padding:15px 20px;border-radius:12px;background:linear-gradient(135deg,#102235,#1f4d78);border:none;color:#fff;font-family:Raleway,sans-serif;font-size:.88rem;font-weight:800;letter-spacing:.06em;text-transform:uppercase;cursor:pointer;margin-bottom:10px;box-shadow:0 8px 24px rgba(0,0,0,.3)">Quiero mi guía gratis</button>'+
     '<p style="font-size:.7rem;color:#78756e;text-align:center">Sin spam. Acceso inmediato.</p>'+
     '</div>';
+  
   document.getElementById('guideModal').classList.add('open');
   document.body.style.overflow='hidden';
   document.getElementById('guideModalBox').scrollTop=0;
+
+  if (!isModalOpen) {
+    history.pushState({modal: true}, '', window.location.hash);
+    isModalOpen = true;
+  }
 }
 
 var _GS={};
@@ -709,12 +777,29 @@ function openGuide(titulo,enlaceES,enlaceEN,tag,img,desc){
     '</div>'+
     '<p style="font-size:.7rem;color:var(--muted,#78756e);text-align:center;line-height:1.5">📚 Guía gratuita · Sin registro previo · Descarga directa</p>'+
     '</div></div>';
+  
   document.getElementById('guideModal').classList.add('open');
   document.body.style.overflow='hidden';
   document.getElementById('guideModalBox').scrollTop=0;
+
+  if (!isModalOpen) {
+    history.pushState({modal: true}, '', window.location.hash);
+    isModalOpen = true;
+  }
 }
-function closeGuide(){document.getElementById('guideModal').classList.remove('open');document.body.style.overflow=''}
-document.getElementById('guideModal').addEventListener('click',function(e){if(e.target===this)closeGuide()});
+
+function closeGuide(){
+  if (isModalOpen) {
+    history.back();
+  } else {
+    forceCloseModals();
+  }
+}
+
+// Cerrar guía si presionan afuera del modal
+document.getElementById('guideModal').addEventListener('click',function(e){
+  if(e.target===this) closeGuide();
+});
 
 function showGuideForm(lang){
   _GS.lang=lang;_GS.enlace=(lang==='en')?_GS.enlaceEN:_GS.enlaceES;
